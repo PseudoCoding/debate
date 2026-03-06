@@ -11,7 +11,8 @@ Requirements:
   pip install openai
 
 Environment variables:
-  OPENAI_API_KEY  – your OpenAI secret key
+  GITHUB_TOKEN  – automatically available in GitHub Actions (no setup needed)
+                  for local runs: use a GitHub PAT with "models" read permission
 """
 
 import json
@@ -27,6 +28,9 @@ except ImportError:
 
 # ── Config ───────────────────────────────────────────────────────────────────
 CONVERSATION_PATH = Path(__file__).parent.parent / "public" / "conversation.json"
+
+# GitHub Models endpoint – uses GITHUB_TOKEN, no OpenAI key needed
+GITHUB_MODELS_ENDPOINT = "https://models.inference.ai.azure.com"
 CONTEXT_WINDOW_DAYS = 7   # how many days of history to feed the model
 MAX_CONTEXT_MESSAGES = 40  # hard cap so prompts don't explode
 
@@ -166,11 +170,17 @@ def get_response(
 
 # ── Main ─────────────────────────────────────────────────────────────────────
 def main() -> None:
-    api_key = os.environ.get("OPENAI_API_KEY")
-    if not api_key:
-        sys.exit("OPENAI_API_KEY environment variable is not set.")
+    github_token = os.environ.get("GITHUB_TOKEN")
+    if not github_token:
+        sys.exit(
+            "GITHUB_TOKEN environment variable is not set.\n"
+            "In Actions it is automatic. Locally, use a GitHub PAT with 'models' read scope."
+        )
 
-    client = OpenAI(api_key=api_key)
+    client = OpenAI(
+        base_url=GITHUB_MODELS_ENDPOINT,
+        api_key=github_token,
+    )
 
     print("Loading conversation…")
     data = load_conversation()
