@@ -2,6 +2,7 @@
   "name": "ai-existence-debate",
   "private": true,
   "version": "1.0.0",
+  "license": "MIT",
   "type": "module",
   "scripts": {
     "dev": "vite",
