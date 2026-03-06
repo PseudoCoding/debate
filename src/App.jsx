@@ -4,6 +4,7 @@ import ChatBubble from './components/ChatBubble.jsx'
 import ParticipantCard from './components/ParticipantCard.jsx'
 import UpdateCountdown from './components/UpdateCountdown.jsx'
 import InfoPopup from './components/InfoPopup.jsx'
+import SummaryPopup from './components/SummaryPopup.jsx'
 
 export default function App() {
   const [conversation, setConversation] = useState(null)
@@ -83,6 +84,7 @@ export default function App() {
       </footer>
 
       <InfoPopup />
+      <SummaryPopup summary={conversation.summary} updatedAt={meta?.lastUpdated} />
     </div>
   )
 }

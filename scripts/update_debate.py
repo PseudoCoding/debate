@@ -53,7 +53,37 @@ SYSTEM_CON = (
 )
 
 
-# ── Helpers ──────────────────────────────────────────────────────────────────
+SYSTEM_SUMMARY = (
+    "You are a neutral debate analyst. Given a transcript of an ongoing debate, "
+    "write a concise, balanced summary (3-4 sentences, plain prose, no bullet points) "
+    "covering: the core positions of each side, the key arguments made so far, "
+    "and where the debate currently stands. Use the speakers' names PROMETHEUS and CASSANDRA. "
+    "Do not take sides."
+)
+
+
+def get_summary(client: "OpenAI", messages: list, participants: dict, topic: str) -> str:
+    """Generate a neutral running summary of the full debate so far."""
+    # Build a compact transcript of all messages (no window cap — summaries need full context)
+    lines = []
+    for msg in messages:
+        name = participants[msg["model"]]["name"]
+        date_str = msg["timestamp"][:10]
+        lines.append(f"[{name} - {date_str}]\n{msg['content']}")
+    transcript = "\n\n".join(lines)
+
+    response = client.chat.completions.create(
+        model=MODEL_CON,  # use gpt-4o-mini to keep summary calls cheap
+        messages=[
+            {"role": "system", "content": SYSTEM_SUMMARY},
+            {"role": "user", "content": f'Topic: "{topic}"\n\nTranscript:\n{transcript}'},
+        ],
+        max_tokens=250,
+        temperature=0.5,
+    )
+    return response.choices[0].message.content.strip()
+
+
 def load_conversation() -> dict:
     with CONVERSATION_PATH.open("r", encoding="utf-8") as f:
         return json.load(f)
@@ -189,6 +219,11 @@ def main() -> None:
     # Update meta
     data["meta"]["totalMessages"] = len(messages)
     data["meta"]["lastUpdated"] = now_iso
+
+    # Regenerate the running summary
+    print("  Generating summary…", end=" ", flush=True)
+    data["summary"] = get_summary(client, messages, participants, topic)
+    print("done.")
 
     save_conversation(data)
     print(f"✓ Message #{next_id} by {name} appended successfully.")
