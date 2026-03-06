@@ -3,6 +3,7 @@ import Header from './components/Header.jsx'
 import ChatBubble from './components/ChatBubble.jsx'
 import ParticipantCard from './components/ParticipantCard.jsx'
 import UpdateCountdown from './components/UpdateCountdown.jsx'
+import InfoPopup from './components/InfoPopup.jsx'
 
 export default function App() {
   const [conversation, setConversation] = useState(null)
@@ -63,12 +64,11 @@ export default function App() {
 
       <main className="chat-container">
         <div className="chat-inner">
-          {messages.map((msg, idx) => (
+          {messages.map((msg) => (
             <ChatBubble
               key={msg.id}
               message={msg}
               participant={participants[msg.model]}
-              isFirst={idx === 0}
             />
           ))}
           <div ref={bottomRef} />
@@ -78,9 +78,11 @@ export default function App() {
       <footer className="footer">
         <UpdateCountdown />
         <span className="footer-note">
-          One voice every 4 hours via GitHub Actions · Debate started {meta?.startDate ?? '2026-03-05'}
+          One voice every 4 hours via GitHub Actions &middot; Debate started {meta?.startDate ?? '2026-03-05'}
         </span>
       </footer>
+
+      <InfoPopup />
     </div>
   )
 }

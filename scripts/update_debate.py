@@ -166,10 +166,9 @@ def main() -> None:
     system   = SYSTEM_PRO   if next_model == MODEL_PRO else SYSTEM_CON
     name     = participants[next_model]["name"]
     next_id  = max((m["id"] for m in messages), default=0) + 1
-    day_num  = debate_day_number(start_date, now)
     first_of_day = is_first_of_today(messages, now)
 
-    print(f"Slot: {now_iso}  →  {name} ({next_model}) speaks  (debate day {day_num})")
+    print(f"Slot: {now_iso}  ->  {name} ({next_model}) speaks")
 
     # ── Build context and call the API ──────────────────────────────────────
     context = build_context(messages, participants, now)
@@ -181,7 +180,6 @@ def main() -> None:
     new_msg = {
         "id": next_id,
         "model": next_model,
-        "day": day_num,
         "isFirstOfDay": first_of_day,
         "timestamp": now_iso,
         "content": content,
