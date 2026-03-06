@@ -10,6 +10,8 @@ export default function App() {
   const [conversation, setConversation] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [infoOpen, setInfoOpen] = useState(false)
+  const [summaryOpen, setSummaryOpen] = useState(false)
   const bottomRef = useRef(null)
 
   useEffect(() => {
@@ -21,6 +23,8 @@ export default function App() {
       .then((data) => {
         setConversation(data)
         setLoading(false)
+        // Open info popup on first visit
+        if (!localStorage.getItem('debate-intro-seen')) setInfoOpen(true)
       })
       .catch((err) => {
         setError(err.message)
@@ -83,8 +87,32 @@ export default function App() {
         </span>
       </footer>
 
-      <InfoPopup />
-      <SummaryPopup summary={conversation.summary} updatedAt={meta?.lastUpdated} />
+      <InfoPopup open={infoOpen} onClose={() => setInfoOpen(false)} />
+      <SummaryPopup
+        open={summaryOpen}
+        onClose={() => setSummaryOpen(false)}
+        summary={conversation.summary}
+        updatedAt={meta?.lastUpdated}
+      />
+
+      <div className="fab-tray">
+        <button
+          className="fab-btn"
+          onClick={() => setSummaryOpen(true)}
+          aria-label="Debate summary"
+          title="Debate summary"
+        >
+          &#x2211;
+        </button>
+        <button
+          className="fab-btn"
+          onClick={() => setInfoOpen(true)}
+          aria-label="What is this?"
+          title="What is this?"
+        >
+          ?
+        </button>
+      </div>
     </div>
   )
 }
