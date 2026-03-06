@@ -124,7 +124,7 @@ def get_response(
             {"role": "system", "content": system},
             {"role": "user", "content": user_prompt},
         ],
-        max_tokens=350,
+        max_tokens=500,
         temperature=0.88,
     )
     return response.choices[0].message.content.strip()
