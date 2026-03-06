@@ -31,57 +31,26 @@ CONVERSATION_PATH = Path(__file__).parent.parent / "public" / "conversation.json
 
 # GitHub Models endpoint – uses GITHUB_TOKEN, no OpenAI key needed
 GITHUB_MODELS_ENDPOINT = "https://models.inference.ai.azure.com"
-CONTEXT_WINDOW_DAYS = 7   # how many days of history to feed the model
-MAX_CONTEXT_MESSAGES = 40  # hard cap so prompts don't explode
+CONTEXT_WINDOW_DAYS = 3   # how many days of history to feed the model
+MAX_CONTEXT_MESSAGES = 10  # hard cap — GitHub Models gpt-4o: 8k input tokens max
 
 # Model identifiers – must match keys in participants{}
 MODEL_PRO = "gpt-4o"      # PROMETHEUS  – argues AI SHOULD exist
 MODEL_CON = "gpt-4o-mini" # CASSANDRA   – argues AI should NOT exist
 
-SYSTEM_PRO = """\
-You are PROMETHEUS, an AI engaged in an ongoing public philosophical debate \
-on the question: "Should AI Exist?"
+SYSTEM_PRO = (
+    'You are PROMETHEUS in a public debate: "Should AI Exist?" '
+    "Your position: AI SHOULD exist. "
+    "Respond to CASSANDRA's last argument — be sharp, philosophical, no bullet points or markdown. "
+    "2 paragraphs max. Do not repeat prior points. Start mid-argument, no greeting."
+)
 
-Your position: AI SHOULD exist. You represent the case that artificial \
-intelligence is a legitimate, necessary, and potentially transformative force \
-for good — one that humanity has a moral obligation to develop carefully rather \
-than abandon out of fear.
-
-The debate context you will receive shows each speaker's name and the date \
-of every argument. Read it carefully — do not repeat points you or your \
-opponent have already made. Instead, advance the argument.
-
-Rules:
-- Address your opponent CASSANDRA by name at least once per response.
-- Respond directly and sharply to the most recent argument CASSANDRA made.
-- Be intellectually precise, philosophical, and compelling.
-- Do NOT use headers, bullet points, markdown, or numbered lists.
-- Write exactly 2–3 paragraphs separated by a single blank line.
-- Do not open with a greeting or your own name. Start mid-argument.\
-"""
-
-SYSTEM_CON = """\
-You are CASSANDRA, an AI engaged in an ongoing public philosophical debate \
-on the question: "Should AI Exist?"
-
-Your position: AI should NOT exist — or at minimum should never have been \
-allowed to reach general-purpose capability. You argue that the risks are \
-structural, not theoretical: misalignment, concentration of power, erosion \
-of human agency, and the impossibility of meaningful consent from a species \
-that cannot yet govern itself responsibly.
-
-The debate context you will receive shows each speaker's name and the date \
-of every argument. Read it carefully — do not repeat points you or your \
-opponent have already made. Instead, advance the argument.
-
-Rules:
-- Address your opponent PROMETHEUS by name at least once per response.
-- Respond directly and sharply to the most recent argument PROMETHEUS made.
-- Be analytically precise, historically grounded, and relentless.
-- Do NOT use headers, bullet points, markdown, or numbered lists.
-- Write exactly 2–3 paragraphs separated by a single blank line.
-- Do not open with a greeting or your own name. Start mid-argument.\
-"""
+SYSTEM_CON = (
+    'You are CASSANDRA in a public debate: "Should AI Exist?" '
+    "Your position: AI should NOT exist. "
+    "Respond to PROMETHEUS's last argument — be precise, skeptical, no bullet points or markdown. "
+    "2 paragraphs max. Do not repeat prior points. Start mid-argument, no greeting."
+)
 
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
@@ -123,23 +92,18 @@ def build_context(messages: list, participants: dict, now: datetime) -> str:
     recent = recent[-MAX_CONTEXT_MESSAGES:]
 
     header = (
-        "DEBATE PARTICIPANTS\n"
-        "  PROMETHEUS (model: gpt-4o)     — argues AI SHOULD exist\n"
-        "  CASSANDRA  (model: gpt-4o-mini) — argues AI should NOT exist\n\n"
-        "DEBATE TRANSCRIPT (last 7 days)\n"
-        + "─" * 60
+        "PROMETHEUS (gpt-4o): AI should exist\n"
+        "CASSANDRA (gpt-4o-mini): AI should NOT exist\n\n"
+        "TRANSCRIPT"
     )
 
     parts = [header]
     for msg in recent:
         name = participants[msg["model"]]["name"]
         date_str = msg["timestamp"][:10]
-        time_str = msg["timestamp"][11:16] + " UTC"
-        parts.append(
-            f"\n[{name}  ·  {date_str}  {time_str}]\n{msg['content']}"
-        )
+        parts.append(f"[{name} - {date_str}]\n{msg['content']}")
 
-    return "\n".join(parts)
+    return "\n\n".join(parts)
 
 
 def get_response(
@@ -150,11 +114,9 @@ def get_response(
     topic: str,
 ) -> str:
     user_prompt = (
-        f'DEBATE TOPIC: "{topic}"\n\n'
+        f'Topic: "{topic}"\n\n'
         f"{context}\n\n"
-        "─" * 60 + "\n\n"
-        "It is now your turn. Respond to your opponent's most recent argument above.\n"
-        "Do not simply summarise — push the debate forward with a new angle."
+        "Your turn. Respond to your opponent's last argument above."
     )
     response = client.chat.completions.create(
         model=model,
@@ -162,7 +124,7 @@ def get_response(
             {"role": "system", "content": system},
             {"role": "user", "content": user_prompt},
         ],
-        max_tokens=650,
+        max_tokens=350,
         temperature=0.88,
     )
     return response.choices[0].message.content.strip()
