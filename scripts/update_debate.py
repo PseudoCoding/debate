@@ -32,7 +32,8 @@ CONVERSATION_PATH = Path(__file__).parent.parent / "public" / "conversation.json
 # GitHub Models endpoint – uses GITHUB_TOKEN, no OpenAI key needed
 GITHUB_MODELS_ENDPOINT = "https://models.inference.ai.azure.com"
 CONTEXT_WINDOW_DAYS = 1   # how many days of history to feed the model (last 24 hrs)
-MAX_CONTEXT_MESSAGES = 6   # hard cap — GitHub Models gpt-4o: 8k input tokens max
+MAX_CONTEXT_MESSAGES = 6   # hard cap for debate context — GitHub Models: 8k input tokens max
+MAX_SUMMARY_MESSAGES = 4   # recent messages fed to the rolling summary updater
 
 # Model identifiers – must match keys in participants{}
 MODEL_PRO = "gpt-4o"      # PROMETHEUS  – argues AI SHOULD exist
@@ -62,21 +63,35 @@ SYSTEM_SUMMARY = (
 )
 
 
-def get_summary(client: "OpenAI", messages: list, participants: dict, topic: str) -> str:
-    """Generate a neutral running summary of the full debate so far."""
-    # Build a compact transcript of all messages (no window cap — summaries need full context)
+def get_summary(client: "OpenAI", messages: list, participants: dict, topic: str, existing_summary: str = "") -> str:
+    """
+    Rolling summary: update the existing summary with the latest arguments.
+    Only the last MAX_SUMMARY_MESSAGES are sent, keeping the prompt well within
+    token limits regardless of how long the debate grows.
+    """
+    recent = messages[-MAX_SUMMARY_MESSAGES:]
     lines = []
-    for msg in messages:
+    for msg in recent:
         name = participants[msg["model"]]["name"]
         date_str = msg["timestamp"][:10]
         lines.append(f"[{name} - {date_str}]\n{msg['content']}")
-    transcript = "\n\n".join(lines)
+    recent_transcript = "\n\n".join(lines)
+
+    if existing_summary:
+        user_content = (
+            f'Topic: "{topic}"\n\n'
+            f'Current summary:\n{existing_summary}\n\n'
+            f'Recent new arguments:\n{recent_transcript}\n\n'
+            'Revise the summary to incorporate these latest arguments.'
+        )
+    else:
+        user_content = f'Topic: "{topic}"\n\nTranscript:\n{recent_transcript}'
 
     response = client.chat.completions.create(
         model=MODEL_CON,  # use gpt-4o-mini to keep summary calls cheap
         messages=[
             {"role": "system", "content": SYSTEM_SUMMARY},
-            {"role": "user", "content": f'Topic: "{topic}"\n\nTranscript:\n{transcript}'},
+            {"role": "user", "content": user_content},
         ],
         max_tokens=250,
         temperature=0.5,
@@ -202,7 +217,7 @@ def main() -> None:
 
     # ── Build context and call the API ──────────────────────────────────────
     context = build_context(messages, participants, now)
-    print(f"  Context: {len(messages)} total messages, feeding last-7-days window…", end=" ", flush=True)
+    print(f"  Context: {len(messages)} total messages, feeding last-24hrs window…", end=" ", flush=True)
 
     content = get_response(client, next_model, system, context, topic)
     print("done.")
@@ -220,9 +235,9 @@ def main() -> None:
     data["meta"]["totalMessages"] = len(messages)
     data["meta"]["lastUpdated"] = now_iso
 
-    # Regenerate the running summary
+    # Regenerate the running summary (rolling update — token budget safe)
     print("  Generating summary…", end=" ", flush=True)
-    data["summary"] = get_summary(client, messages, participants, topic)
+    data["summary"] = get_summary(client, messages, participants, topic, existing_summary=data.get("summary", ""))
     print("done.")
 
     save_conversation(data)
