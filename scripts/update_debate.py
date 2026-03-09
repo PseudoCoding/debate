@@ -2,7 +2,7 @@
 """
 update_debate.py
 Every 4 hours ONE model adds a single argument to the debate, alternating
-with whichever model spoke last.  The model receives the last 7 days of
+with whichever model spoke last.  The model receives the last 24 hours of
 conversation as context, with clear attribution for every entry.
 
 Intended to be called by GitHub Actions (cron: '0 */4 * * *').
@@ -31,8 +31,8 @@ CONVERSATION_PATH = Path(__file__).parent.parent / "public" / "conversation.json
 
 # GitHub Models endpoint – uses GITHUB_TOKEN, no OpenAI key needed
 GITHUB_MODELS_ENDPOINT = "https://models.inference.ai.azure.com"
-CONTEXT_WINDOW_DAYS = 3   # how many days of history to feed the model
-MAX_CONTEXT_MESSAGES = 10  # hard cap — GitHub Models gpt-4o: 8k input tokens max
+CONTEXT_WINDOW_DAYS = 1   # how many days of history to feed the model (last 24 hrs)
+MAX_CONTEXT_MESSAGES = 6   # hard cap — GitHub Models gpt-4o: 8k input tokens max
 
 # Model identifiers – must match keys in participants{}
 MODEL_PRO = "gpt-4o"      # PROMETHEUS  – argues AI SHOULD exist
