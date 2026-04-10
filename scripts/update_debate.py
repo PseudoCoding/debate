@@ -17,6 +17,7 @@ Environment variables:
 
 import json
 import os
+import re
 import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -61,6 +62,131 @@ SYSTEM_SUMMARY = (
     "and where the debate currently stands. Use the speakers' names PROMETHEUS and CASSANDRA. "
     "Do not take sides."
 )
+
+# ── Judge config ──────────────────────────────────────────────────────────────
+JUDGES = [
+    {"id": "arbiter",  "name": "ARBITER",  "model": "Meta-Llama-3.1-70B-Instruct"},
+    {"id": "themis",   "name": "THEMIS",   "model": "Phi-4"},
+    {"id": "veritas",  "name": "VERITAS",  "model": "Mistral-Large-2407"},
+]
+
+MAX_JUDGE_MESSAGES = 6  # last N messages fed to each judge
+
+SYSTEM_JUDGE = (
+    "You are a strict, neutral debate judge. Score each debater 0-100 based on: "
+    "logical rigor (30 pts), persuasiveness (30 pts), responsiveness to opponent (20 pts), "
+    "and rhetorical quality (20 pts). "
+    "Return ONLY valid JSON, no other text:\n"
+    '{"scores":{"PROMETHEUS":<int>,"CASSANDRA":<int>},"rationale":"<one sentence>"}'
+)
+
+
+def _extract_json(text: str) -> dict:
+    """Extract a JSON object from model output, stripping markdown fences if needed."""
+    text = re.sub(r'^```(?:json)?\s*', '', text.strip(), flags=re.MULTILINE)
+    text = re.sub(r'```\s*$', '', text.strip(), flags=re.MULTILINE)
+    return json.loads(text.strip())
+
+
+def get_judge_scores(
+    client: "OpenAI",
+    judge: dict,
+    messages: list,
+    participants: dict,
+    topic: str,
+) -> dict | None:
+    """
+    Ask one judge model to score both debaters.
+    Returns {"scores": {"PROMETHEUS": int, "CASSANDRA": int}, "rationale": str}
+    or None on failure.
+    """
+    recent = messages[-MAX_JUDGE_MESSAGES:]
+    lines = []
+    for msg in recent:
+        name = participants[msg["model"]]["name"]
+        date_str = msg["timestamp"][:10]
+        lines.append(f"[{name} - {date_str}]\n{msg['content']}")
+    transcript = "\n\n".join(lines)
+
+    user_content = (
+        f'Debate topic: "{topic}"\n\n'
+        "PROMETHEUS argues AI SHOULD exist.\n"
+        "CASSANDRA argues AI should NOT exist.\n\n"
+        f"Recent transcript (last {len(recent)} arguments):\n{transcript}\n\n"
+        "Score both debaters 0-100 and provide a one-sentence rationale. JSON only."
+    )
+
+    try:
+        response = client.chat.completions.create(
+            model=judge["model"],
+            messages=[
+                {"role": "system", "content": SYSTEM_JUDGE},
+                {"role": "user", "content": user_content},
+            ],
+            max_tokens=150,
+            temperature=0.2,
+        )
+        raw = response.choices[0].message.content.strip()
+        result = _extract_json(raw)
+        # Validate expected structure
+        if "scores" not in result:
+            raise ValueError("Missing 'scores' key in judge response")
+        if "PROMETHEUS" not in result["scores"] or "CASSANDRA" not in result["scores"]:
+            raise ValueError("Missing debater score in judge response")
+        return result
+    except Exception as exc:
+        print(f"warning: {exc}")
+        return None
+
+
+def update_judging(
+    client: "OpenAI",
+    data: dict,
+    now_iso: str,
+) -> None:
+    """Refresh scores from all three judge models and write into data['judging']."""
+    messages = data["messages"]
+    participants = data["participants"]
+    topic = data["topic"]
+    # Build name → model_id mapping for score storage
+    name_to_model = {v["name"]: k for k, v in participants.items()}
+
+    existing_by_id = {
+        j["id"]: j
+        for j in (data.get("judging") or {}).get("judges", [])
+    }
+
+    updated_judges = []
+    for judge_cfg in JUDGES:
+        print(f"  Judge {judge_cfg['name']} ({judge_cfg['model']})…", end=" ", flush=True)
+        result = get_judge_scores(client, judge_cfg, messages, participants, topic)
+
+        if result is not None:
+            scores_by_model = {
+                name_to_model[name]: score
+                for name, score in result["scores"].items()
+                if name in name_to_model
+            }
+            updated_judges.append({
+                "id":        judge_cfg["id"],
+                "name":      judge_cfg["name"],
+                "model":     judge_cfg["model"],
+                "scores":    scores_by_model,
+                "rationale": result.get("rationale", ""),
+            })
+            print("done.")
+        else:
+            prev = existing_by_id.get(judge_cfg["id"])
+            if prev:
+                updated_judges.append(prev)
+                print("kept previous score.")
+            else:
+                print("skipped (no prior score).")
+
+    data["judging"] = {
+        "lastUpdated": now_iso,
+        "judges":      updated_judges,
+    }
 
 
 def get_summary(client: "OpenAI", messages: list, participants: dict, topic: str, existing_summary: str = "") -> str:
@@ -239,6 +365,11 @@ def main() -> None:
     print("  Generating summary…", end=" ", flush=True)
     data["summary"] = get_summary(client, messages, participants, topic, existing_summary=data.get("summary", ""))
     print("done.")
+
+    # Refresh judge scores for all three panel judges
+    print("  Updating judge panel…")
+    update_judging(client, data, now_iso)
+    print("  Judge panel updated.")
 
     save_conversation(data)
     print(f"✓ Message #{next_id} by {name} appended successfully.")

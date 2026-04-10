@@ -5,6 +5,7 @@ import ParticipantCard from './components/ParticipantCard.jsx'
 import UpdateCountdown from './components/UpdateCountdown.jsx'
 import InfoPopup from './components/InfoPopup.jsx'
 import SummaryPopup from './components/SummaryPopup.jsx'
+import JudgesPopup from './components/JudgesPopup.jsx'
 
 export default function App() {
   const [conversation, setConversation] = useState(null)
@@ -12,6 +13,7 @@ export default function App() {
   const [error, setError] = useState(null)
   const [infoOpen, setInfoOpen] = useState(false)
   const [summaryOpen, setSummaryOpen] = useState(false)
+  const [judgesOpen, setJudgesOpen] = useState(false)
   const bottomRef = useRef(null)
 
   useEffect(() => {
@@ -94,8 +96,22 @@ export default function App() {
         summary={conversation.summary}
         updatedAt={meta?.lastUpdated}
       />
+      <JudgesPopup
+        open={judgesOpen}
+        onClose={() => setJudgesOpen(false)}
+        judging={conversation.judging}
+        participants={participants}
+      />
 
       <div className="fab-tray">
+        <button
+          className="fab-btn"
+          onClick={() => setJudgesOpen(true)}
+          aria-label="Judge panel scores"
+          title="Judge panel scores"
+        >
+          &#x2696;
+        </button>
         <button
           className="fab-btn"
           onClick={() => setSummaryOpen(true)}

@@ -19,6 +19,9 @@
   --con-dim:      rgba(255, 107, 53, 0.12);
   --con-glow:     rgba(255, 107, 53, 0.35);
 
+  --judge-color:  #a78bfa;
+  --judge-dim:    rgba(167, 139, 250, 0.12);
+
   --text:         #e0e0f0;
   --text-muted:   #5a5a7a;
   --text-dim:     #9090b0;
@@ -357,13 +360,19 @@ html, body {
   transition: border-color 0.2s, color 0.2s, background 0.2s;
 }
 
-.fab-btn:first-child:hover {
+.fab-btn:nth-child(1):hover {
+  border-color: var(--judge-color);
+  color: var(--judge-color);
+  background: var(--judge-dim);
+}
+
+.fab-btn:nth-child(2):hover {
   border-color: var(--con-color);
   color: var(--con-color);
   background: var(--con-dim);
 }
 
-.fab-btn:last-child:hover {
+.fab-btn:nth-child(3):hover {
   border-color: var(--pro-color);
   color: var(--pro-color);
   background: var(--pro-dim);
@@ -478,4 +487,139 @@ html, body {
   .bubble-time {
     display: none;
   }
+}
+/* ── Wide popup (judges) ───────────────────────────────── */
+.popup-wide {
+  max-width: 680px;
+}
+
+/* ── Judge scorecard ────────────────────────────────────── */
+.judge-scorecard {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+  margin-bottom: 20px;
+}
+
+.judge-row {
+  display: grid;
+  /* label col + judge cols + avg col — set via inline style or fixed count */
+  grid-template-columns: 1fr repeat(3, 1fr) 1fr;
+  border-bottom: 1px solid var(--border);
+}
+
+.judge-row:last-child {
+  border-bottom: none;
+}
+
+.judge-header-row {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.judge-cell {
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 3px;
+}
+
+.judge-cell + .judge-cell {
+  border-left: 1px solid var(--border);
+}
+
+.judge-label-cell {
+  min-width: 0;
+}
+
+.judge-header-cell {
+  align-items: center;
+  text-align: center;
+}
+
+.judge-avg-header {
+  background: rgba(167, 139, 250, 0.06);
+}
+
+.judge-name {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: var(--judge-color);
+}
+
+.judge-model-tag {
+  font-size: 0.55rem;
+  letter-spacing: 0.03em;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.judge-participant-name {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.judge-pro  { color: var(--pro-color); }
+.judge-con  { color: var(--con-color); }
+
+.judge-stance-tag {
+  font-size: 0.58rem;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+.judge-score-cell {
+  align-items: center;
+  justify-content: center;
+}
+
+.judge-avg-cell {
+  background: rgba(167, 139, 250, 0.06);
+}
+
+.judge-score {
+  font-size: 1.1rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.judge-score-pro { color: var(--pro-color); }
+.judge-score-con { color: var(--con-color); }
+
+.judge-avg-val {
+  font-size: 1.15rem;
+}
+
+/* ── Judge rationales ───────────────────────────────────── */
+.judge-rationales {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.judge-rationale {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 0.72rem;
+  line-height: 1.6;
+}
+
+.judge-rationale-name {
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: var(--judge-color);
+  text-transform: uppercase;
+}
+
+.judge-rationale-text {
+  color: var(--text-dim);
 }
