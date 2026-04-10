@@ -65,9 +65,9 @@ SYSTEM_SUMMARY = (
 
 # ── Judge config ──────────────────────────────────────────────────────────────
 JUDGES = [
-    {"id": "arbiter",  "name": "ARBITER",  "model": "Meta-Llama-3.1-70B-Instruct"},
-    {"id": "themis",   "name": "THEMIS",   "model": "Phi-4"},
-    {"id": "veritas",  "name": "VERITAS",  "model": "Mistral-Large-2407"},
+    {"id": "arbiter",  "name": "ARBITER",  "model": "gpt-5.4-nano"},
+    {"id": "themis",   "name": "THEMIS",   "model": "phi-4"},
+    {"id": "veritas",  "name": "VERITAS",  "model": "llama-3.3-70B-instruct"},
 ]
 
 MAX_JUDGE_MESSAGES = 6  # last N messages fed to each judge
