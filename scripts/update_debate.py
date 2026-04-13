@@ -65,7 +65,7 @@ SYSTEM_SUMMARY = (
 
 # ── Judge config ──────────────────────────────────────────────────────────────
 JUDGES = [
-    {"id": "arbiter",  "name": "ARBITER",  "model": "gpt-5-mini"},
+    {"id": "arbiter",  "name": "ARBITER",  "model": "gpt-5"},
     {"id": "themis",   "name": "THEMIS",   "model": "phi-4"},
     {"id": "veritas",  "name": "VERITAS",  "model": "llama-3.3-70B-instruct"},
 ]
