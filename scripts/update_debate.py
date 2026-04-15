@@ -123,7 +123,7 @@ def get_judge_scores(
                 {"role": "system", "content": SYSTEM_JUDGE},
                 {"role": "user", "content": user_content},
             ],
-            max_tokens=150,
+            max_completion_tokens=150,
             temperature=0.2,
         )
         raw = response.choices[0].message.content.strip()
@@ -143,8 +143,9 @@ def update_judging(
     client: "OpenAI",
     data: dict,
     now_iso: str,
-) -> None:
-    """Refresh scores from all three judge models and write into data['judging']."""
+) -> bool:
+    """Refresh scores from all three judge models and write into data['judging'].
+    Returns True if all judges succeeded, False if any judge failed."""
     messages = data["messages"]
     participants = data["participants"]
     topic = data["topic"]
@@ -157,6 +158,7 @@ def update_judging(
     }
 
     updated_judges = []
+    all_succeeded = True
     for judge_cfg in JUDGES:
         print(f"  Judge {judge_cfg['name']} ({judge_cfg['model']})…", end=" ", flush=True)
         result = get_judge_scores(client, judge_cfg, messages, participants, topic)
@@ -176,6 +178,7 @@ def update_judging(
             })
             print("done.")
         else:
+            all_succeeded = False
             prev = existing_by_id.get(judge_cfg["id"])
             if prev:
                 updated_judges.append(prev)
@@ -187,6 +190,7 @@ def update_judging(
         "lastUpdated": now_iso,
         "judges":      updated_judges,
     }
+    return all_succeeded
 
 
 def get_summary(client: "OpenAI", messages: list, participants: dict, topic: str, existing_summary: str = "") -> str:
@@ -219,7 +223,7 @@ def get_summary(client: "OpenAI", messages: list, participants: dict, topic: str
             {"role": "system", "content": SYSTEM_SUMMARY},
             {"role": "user", "content": user_content},
         ],
-        max_tokens=250,
+        max_completion_tokens=250,
         temperature=0.5,
     )
     return response.choices[0].message.content.strip()
@@ -295,7 +299,7 @@ def get_response(
             {"role": "system", "content": system},
             {"role": "user", "content": user_prompt},
         ],
-        max_tokens=500,
+        max_completion_tokens=500,
         temperature=0.88,
     )
     return response.choices[0].message.content.strip()
@@ -368,11 +372,14 @@ def main() -> None:
 
     # Refresh judge scores for all three panel judges
     print("  Updating judge panel…")
-    update_judging(client, data, now_iso)
+    judges_ok = update_judging(client, data, now_iso)
     print("  Judge panel updated.")
 
     save_conversation(data)
     print(f"✓ Message #{next_id} by {name} appended successfully.")
+
+    if not judges_ok:
+        sys.exit("⚠ Partial success: one or more judges failed to score. See warnings above.")
 
 
 if __name__ == "__main__":
